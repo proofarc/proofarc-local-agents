@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Stand-in for docker: logs each call as "<cwd> | <args>", saves login's stdin,
+# and exits 1 when the args equal $FAKE_DOCKER_FAIL.
+echo "$PWD | $*" >> "$FAKE_DOCKER_LOG"
+if [ "${1:-}" = login ]; then
+  cat > "$FAKE_DOCKER_LOG.stdin"
+fi
+if [ "$*" = "${FAKE_DOCKER_FAIL:-}" ]; then
+  exit 1
+fi
