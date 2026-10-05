@@ -56,7 +56,7 @@ PROOFARC_URL=https://ui-outpostqa.proofarc.ai      # your Proofarc address, no t
 PROOFARC_AGENT_TOKEN=<the agent token>
 PROOFARC_PULL_TOKEN=<the pull token>
 PROOFARC_SITE=outpostqa                            # a short name for this site
-PROOFARC_VERSION=v4.8.12                           # leave as sent
+PROOFARC_VERSION=v4.8.22                           # leave as sent
 ```
 
 Leave `PROOFARC_AGENT_USERNAME` and `PROOFARC_AGENT_PASSWORD` empty — the token replaces them.

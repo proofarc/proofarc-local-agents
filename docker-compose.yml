@@ -40,7 +40,7 @@ services:
     restart: unless-stopped
 
   webdriver:
-    image: ghcr.io/proofarc/selenium:${PROOFARC_VERSION:-v4.8.12}
+    image: ghcr.io/proofarc/selenium:${PROOFARC_VERSION:-v4.8.22}
     depends_on:
       browser:
         condition: service_healthy
@@ -54,7 +54,7 @@ services:
     restart: unless-stopped
 
   playwright:
-    image: ghcr.io/proofarc/playwright:${PROOFARC_VERSION:-v4.8.12}
+    image: ghcr.io/proofarc/playwright:${PROOFARC_VERSION:-v4.8.22}
     shm_size: 1g
     environment:
       <<: *agent-login
