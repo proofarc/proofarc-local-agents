@@ -1,16 +1,14 @@
-# Proofarc test agents — run inside YOUR network, on any machine with Docker.
+# Proofarc test agent — runs inside YOUR network, on any machine with Docker.
 #
-# Two agents, both of which dial OUT to the Proofarc platform over HTTPS 443:
-#   webdriver   runs UI tests on Selenium, and crawls with HtmlUnit
-#   playwright  runs UI tests on Playwright, and crawls with Playwright
-# plus a Chromium browser the WebDriver agent drives.
+# Playwright agent dials OUT to the Proofarc platform over HTTPS 443 to:
+#   - run UI tests on Playwright
+#   - crawl sites with Playwright
 #
-# Nothing here publishes a port. Nothing connects in from outside; the agents ask the platform
-# for work, run it against your application, and send the results back.
+# Nothing here publishes a port. Nothing connects in from outside; the agent asks the platform
+# for work, runs it against your application, and sends results back.
 #
-#   cp .env.example .env      # put in the token we gave you
-#   docker compose up -d
-#   docker compose logs -f    # "registered" and "heartbeat" = connected
+#   ./start.sh                # logs in to ghcr.io, fetches token if needed, starts agent
+#   docker compose logs -f    # "Registered" and "Polling" = connected
 #   docker compose down       # stop everything
 
 name: proofarc-agents
@@ -23,36 +21,6 @@ x-agent-login: &agent-login
   AUTH_PASSWORD: ${PROOFARC_AGENT_PASSWORD:-}
 
 services:
-  browser:
-    # Multi-arch (Intel and Apple Silicon). Same Selenium line the platform runs.
-    image: selenium/standalone-chromium:4.48.0
-    shm_size: 2g
-    environment:
-      SE_NODE_MAX_SESSIONS: "2"
-      SE_NODE_OVERRIDE_MAX_SESSIONS: "true"
-      SE_SESSION_REQUEST_TIMEOUT: "300"
-    healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:4444/status"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
-    restart: unless-stopped
-
-  webdriver:
-    image: ghcr.io/proofarc/selenium:${PROOFARC_VERSION:-v4.8.22}
-    depends_on:
-      browser:
-        condition: service_healthy
-    environment:
-      <<: *agent-login
-      AGENT_ID: ${PROOFARC_SITE:-customer}-webdriver-001
-      API_BASE_URL: ${PROOFARC_URL:?set PROOFARC_URL in .env}
-      SELENIUM_URL: http://browser:4444
-      POLL_INTERVAL: "15"
-      MAX_CONCURRENT_JOBS: "2"
-    restart: unless-stopped
-
   playwright:
     image: ghcr.io/proofarc/playwright:${PROOFARC_VERSION:-v4.8.22}
     shm_size: 1g
