@@ -1,13 +1,13 @@
 # Proofarc agents — step by step
 
-Two Proofarc test agents and a browser, run with Docker on any machine. They connect **out** to
-your Proofarc platform over HTTPS and run tests from there. Nothing connects in to this machine.
+One Proofarc test agent, run with Docker on any machine. It connects **out** to your Proofarc
+platform over HTTPS and runs tests from there. Nothing connects in to this machine.
 
 | Service | What it does |
 |---|---|
-| `webdriver` | UI tests on Selenium; crawls with HtmlUnit |
-| `playwright` | UI tests on Playwright; crawls with Playwright |
-| `browser` | the Chromium browser the `webdriver` agent drives |
+| `playwright` | UI tests on Playwright, and crawls with Playwright (its own browser is built in) |
+
+WebDriver (Selenium) tests and the HtmlUnit crawler are not part of this setup.
 
 ---
 
@@ -15,10 +15,10 @@ your Proofarc platform over HTTPS and run tests from there. Nothing connects in 
 
 - [ ] A machine with **Docker Desktop** (Mac/Windows) or **Docker Engine + Compose** (Linux).
       An Intel/AMD machine or Linux is best — see the note on Apple Silicon at the end.
-- [ ] About **2.5 CPU and 4 GB of memory** free while tests run.
+- [ ] About **1.5 CPU and 2 GB of memory** free while tests run.
 - [ ] Outbound **HTTPS (443)** from this machine to:
   - your Proofarc address (for example `ui-outpostqa.proofarc.ai`)
-  - `ghcr.io` (our agent images) and Docker Hub (the browser image)
+  - `ghcr.io` (our agent image)
 - [ ] Network access from this machine to the application you want tested.
 - [ ] From Proofarc, three things, each sent to you separately:
   1. a **pull token** — to download our images
@@ -77,40 +77,39 @@ Windows (PowerShell):
 powershell -ExecutionPolicy Bypass -File .\start.ps1
 ```
 
-This signs in to our image registry with the pull token, downloads the images, and starts the
-agents. The first time takes a few minutes. It should end without `denied` or `unauthorized`.
+This signs in to our image registry with the pull token, downloads the image, and starts the
+agent. The first time takes a few minutes. It should end without `denied` or `unauthorized`.
 
 To do the same by hand: `docker login ghcr.io -u proofarc --password-stdin` (paste the pull
 token, Enter, `Ctrl-D`), then `docker compose pull` and `docker compose up -d`.
 
-## Step 5 — Check they connected
+## Step 5 — Check it connected
 
 ```
-docker compose logs webdriver playwright
+docker compose logs playwright
 ```
 
-For **each** agent you should see:
+You should see:
 
 - `Signing in with the configured token (valid until …)` — note the date; that is when the token
   runs out.
 - `registered`
 
 Then open your Proofarc in a browser, go to **Agents**, and look for
-`<site>-webdriver-001` and `<site>-playwright-001` (for example `outpostqa-webdriver-001`).
+`<site>-playwright-001` (for example `outpostqa-playwright-001`).
 
 ## Step 6 — Run something
 
-In Proofarc, run any UI test or crawl on the environment these agents serve. When it finishes,
-open the run: **claimed by** shows `<site>-webdriver-001` or `<site>-playwright-001` when one of
-these agents ran it.
+In Proofarc, run a UI test on **Playwright**, or a crawl, on the environment this agent serves.
+When it finishes, open the run: the agent shows `<site>-playwright-001` when this agent ran it.
 
-To watch the agents while they work:
+To watch the agent while it works:
 
 ```
-docker compose logs -f webdriver playwright
+docker compose logs -f playwright
 ```
 
-`Ctrl-C` stops watching; the agents keep running.
+`Ctrl-C` stops watching; the agent keeps running.
 
 ---
 
@@ -119,7 +118,7 @@ docker compose logs -f webdriver playwright
 | To | Run |
 |---|---|
 | See what is running | `docker compose ps` |
-| Watch the logs | `docker compose logs -f webdriver playwright` |
+| Watch the logs | `docker compose logs -f playwright` |
 | Stop everything | `docker compose down` |
 | Start again | `./start.sh` (Windows: `powershell -ExecutionPolicy Bypass -File .\start.ps1`) |
 | Update to a new version | change `PROOFARC_VERSION` in `.env`, then start again |
@@ -138,7 +137,7 @@ Stopping the containers cuts the connection immediately; Proofarc simply stops g
 | `denied` or `unauthorized` while pulling | the pull token is missing from `.env` or has expired | check `PROOFARC_PULL_TOKEN` in `.env` (step 3); ask for a new pull token if it still fails |
 | `AGENT_NO_CREDENTIALS` in the logs | no agent token in `.env` | Step 3; then `docker compose up -d` |
 | `AGENT_TOKEN_REJECTED` in the logs | the agent token expired or was withdrawn | ask for a new agent token; put it in `.env`; `docker compose up -d` |
-| agents never say `registered` | this machine cannot reach your Proofarc address, or the address in `.env` is wrong | check `PROOFARC_URL`; check that `https://<your address>` opens from this machine |
+| the agent never says `registered` | this machine cannot reach your Proofarc address, or the address in `.env` is wrong | check `PROOFARC_URL`; check that `https://<your address>` opens from this machine |
 | a test fails at the first page with `there is no site called …` | the address being tested cannot be reached from this machine | check this machine can open the application under test |
 
 ---
