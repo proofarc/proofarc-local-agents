@@ -22,7 +22,7 @@ x-agent-login: &agent-login
 
 services:
   playwright:
-    image: ghcr.io/proofarc/playwright:${PROOFARC_VERSION:-v4.8.25}
+    image: ghcr.io/proofarc/playwright:${PROOFARC_VERSION:-v4.8.26}
     shm_size: 1g
     environment:
       <<: *agent-login
