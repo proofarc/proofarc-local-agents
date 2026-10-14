@@ -39,10 +39,15 @@ docker info
 
 It should print details, not `Cannot connect to the Docker daemon`.
 
+**Give Docker enough room.** In Docker Desktop open **Settings → Resources** and set
+**Memory to at least 4 GB** and **CPUs to at least 2**, then **Apply & restart**. The agent runs a
+real browser, two jobs at once, and uses up to 3 GB; with less, a heavy page can stall or crash it.
+(Docker Engine on Linux has no such setting; the machine just needs that much free.)
+
 ## Step 2 — Go to this folder
 
 ```
-cd /path/to/proofarc-agens
+cd /path/to/proofarc-local-agents
 ```
 
 ## Step 3 — Put in your settings
@@ -59,6 +64,14 @@ PROOFARC_AGENT_TOKEN=<the agent token>
 PROOFARC_PULL_TOKEN=<the pull token>
 PROOFARC_SITE=outpostqa                            # a short name for this site
 PROOFARC_VERSION=v4.8.28-frames                           # leave as sent
+```
+
+These three can stay as they are — they set how much the agent may use:
+
+```
+PROOFARC_CPUS=2          # CPUs the agent may use
+PROOFARC_MEMORY=3g       # memory the agent may use
+PROOFARC_MAX_JOBS=2      # browser jobs at once; set 1 on a small machine
 ```
 
 Leave `PROOFARC_AGENT_USERNAME` and `PROOFARC_AGENT_PASSWORD` empty — the token replaces them.
@@ -123,7 +136,10 @@ docker compose logs -f playwright
 | Watch the logs | `docker compose logs -f playwright` |
 | Stop everything | `docker compose down` |
 | Start again | `./start.sh` (Windows: `powershell -ExecutionPolicy Bypass -File .\start.ps1`) |
+| Get our latest setup (settings, fixes to these files) | `git pull`, then `./start.sh` |
 | Update to a new version | change `PROOFARC_VERSION` in `.env`, then start again |
+| Run one job at a time (small machine) | set `PROOFARC_MAX_JOBS=1` in `.env`, then `./start.sh` |
+| See how much it is using | `docker stats --no-stream` |
 | Put in a new pull token | replace `PROOFARC_PULL_TOKEN` in `.env`, then start again |
 | Put in a new agent token | replace `PROOFARC_AGENT_TOKEN` in `.env`, then `docker compose up -d` |
 
