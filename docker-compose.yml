@@ -24,10 +24,16 @@ services:
   playwright:
     image: ghcr.io/proofarc/playwright:${PROOFARC_VERSION:-v4.8.28-frames}
     shm_size: 1g
+    # What the agent needs, and the same as our own cloud agent gets: up to 2 CPUs and 3 GB for two
+    # browser jobs at once. With less, a heavy page (a dashboard) can stall or kill the browser.
+    # Docker Desktop must itself have at least this much (Settings → Resources): 4 GB and 2 CPUs.
+    # On a smaller machine, run one job at a time: PROOFARC_MAX_JOBS=1 in .env.
+    cpus: ${PROOFARC_CPUS:-2}
+    mem_limit: ${PROOFARC_MEMORY:-3g}
     environment:
       <<: *agent-login
       AGENT_ID: ${PROOFARC_SITE:-customer}-playwright-001
       API_BASE_URL: ${PROOFARC_URL:?set PROOFARC_URL in .env}
       POLL_INTERVAL: "15"
-      MAX_CONCURRENT_JOBS: "2"
+      MAX_CONCURRENT_JOBS: ${PROOFARC_MAX_JOBS:-2}
     restart: unless-stopped

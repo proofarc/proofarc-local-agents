@@ -15,7 +15,9 @@ WebDriver (Selenium) tests and the HtmlUnit crawler are not part of this setup.
 
 - [ ] A machine with **Docker Desktop** (Mac/Windows) or **Docker Engine + Compose** (Linux).
       An Intel/AMD machine or Linux is best — see the note on Apple Silicon at the end.
-- [ ] About **1.5 CPU and 2 GB of memory** free while tests run.
+- [ ] **2 CPUs and 4 GB of memory** for Docker. In Docker Desktop: Settings → Resources → set
+      Memory to at least 4 GB and CPUs to at least 2. The agent runs two browser jobs at once and
+      may use up to 3 GB; on a smaller machine set `PROOFARC_MAX_JOBS=1` in `.env`.
 - [ ] Outbound **HTTPS (443)** from this machine to:
   - your Proofarc address (for example `ui-outpostqa.proofarc.ai`)
   - `ghcr.io` (our agent image)
@@ -134,6 +136,8 @@ Stopping the containers cuts the connection immediately; Proofarc simply stops g
 | You see | What it means | What to do |
 |---|---|---|
 | `Cannot connect to the Docker daemon` | Docker is not running | Start Docker Desktop (step 1) |
+| Jobs stay **Pending** and the agent shows **Offline** | The agent stopped — the machine slept, Docker quit, or the container was stopped | `docker compose ps`; then `./start.sh`. Waiting jobs are picked up within 15 seconds |
+| The agent restarts during a crawl; `docker compose logs playwright` shows `Killed`, or `docker compose ps` shows exit code 137 | It ran out of memory | Give Docker Desktop more memory (Settings → Resources, at least 4 GB), or set `PROOFARC_MAX_JOBS=1` in `.env`, then `./start.sh` |
 | `denied` or `unauthorized` while pulling | the pull token is missing from `.env` or has expired | check `PROOFARC_PULL_TOKEN` in `.env` (step 3); ask for a new pull token if it still fails |
 | `AGENT_NO_CREDENTIALS` in the logs | no agent token in `.env` | Step 3; then `docker compose up -d` |
 | `AGENT_TOKEN_REJECTED` in the logs | the agent token expired or was withdrawn | ask for a new agent token; put it in `.env`; `docker compose up -d` |
