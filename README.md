@@ -63,7 +63,7 @@ PROOFARC_URL=https://ui-outpostqa.proofarc.ai      # your Proofarc address, no t
 PROOFARC_AGENT_TOKEN=<the agent token>
 PROOFARC_PULL_TOKEN=<the pull token>
 PROOFARC_SITE=outpostqa                            # a short name for this site
-PROOFARC_VERSION=v4.8.31                           # leave as sent
+PROOFARC_VERSION=v4.8.32                           # leave as sent
 ```
 
 These three can stay as they are — they set how much the agent may use:
