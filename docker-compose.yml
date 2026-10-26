@@ -22,7 +22,7 @@ x-agent-login: &agent-login
 
 services:
   playwright:
-    image: ghcr.io/proofarc/playwright:${PROOFARC_VERSION:-v4.8.35}
+    image: ghcr.io/proofarc/playwright:${PROOFARC_VERSION:-v4.8.39}
     shm_size: 1g
     # What the agent needs, and the same as our own cloud agent gets: up to 2 CPUs and 3 GB for two
     # browser jobs at once. With less, a heavy page (a dashboard) can stall or kill the browser.
