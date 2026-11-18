@@ -1,0 +1,167 @@
+# ProofArc on one machine: the whole platform, for testing YOUR web app (Playwright UI tests) and
+# YOUR API (API tests). Nothing leaves this machine except the image download.
+#
+#   ./start.sh                 first time and every time: settings, download, start, check
+#   ./check.sh                 is everything up?
+#   docker compose down        stop (your tests and runs are kept)
+#   docker compose down -v     stop and delete everything (next start begins empty)
+#
+# Starts in order, each waiting for the one before: postgres → db-init → security-agent (the
+# platform) → web app, MCP server, Playwright agent, API agent.
+#
+# The ports open on this machine only (127.0.0.1), not to your network.
+
+name: proofarc-local
+
+x-image-platform: &amd64
+  # Our images are built for Intel/AMD. On an Apple Silicon Mac Docker runs them emulated (slower).
+  platform: linux/amd64
+
+x-agent-login: &agent-login
+  AUTH_USERNAME: agent-service
+  AUTH_PASSWORD: ${PROOFARC_AGENT_PASSWORD:?run ./start.sh, it fills this in}
+
+x-your-app: &your-app
+  # Lets the platform reach an app running on THIS machine as http://host.docker.internal:<port>.
+  # (Inside a container, "localhost" is the container itself, not your machine.)
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
+
+services:
+  postgres:
+    image: postgres:14-alpine
+    environment:
+      POSTGRES_DB: security_agent
+      POSTGRES_USER: secadmin
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?run ./start.sh, it fills this in}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U secadmin -d security_agent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+
+  # Creates the tables and starting data on the first start, applies new changes on later ones, then
+  # sets the two logins from .env. Safe to run every time; it skips what is already done.
+  db-init:
+    <<: *amd64
+    image: ghcr.io/proofarc/pa_db_init:${PROOFARC_VERSION:-v4.8.45}
+    entrypoint: ["sh", "-c", "db-init all && sh /set-logins.sh"]
+    environment:
+      PGHOST: postgres
+      PGPORT: "5432"
+      PGDATABASE: security_agent
+      PGUSER: secadmin
+      PGPASSWORD: ${DB_PASSWORD}
+      PROOFARC_ADMIN_PASSWORD: ${PROOFARC_ADMIN_PASSWORD:?run ./start.sh, it fills this in}
+      PROOFARC_AGENT_PASSWORD: ${PROOFARC_AGENT_PASSWORD}
+    volumes:
+      - ./set-logins.sh:/set-logins.sh:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  security-agent:
+    <<: [*amd64, *your-app]
+    image: ghcr.io/proofarc/backend:${PROOFARC_VERSION:-v4.8.45}
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    environment:
+      PROOFARC_API_EXECUTION_MODE: agent
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/security_agent
+      SPRING_DATASOURCE_USERNAME: secadmin
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: none
+      SPRING_JPA_SHOW_SQL: "false"
+      SERVER_PORT: "8080"
+      JWT_SECRET: ${JWT_SECRET:?run ./start.sh, it fills this in}
+      JWT_EXPIRATION_MS: "86400000"
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?run ./start.sh, it fills this in}
+      LOGGING_LEVEL_ROOT: INFO
+      LOGGING_LEVEL_COM_PROOFARC: INFO
+      S3_ENABLED: "false"
+      MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health
+      PROOFARC_SECRETS_ENABLED: "false"
+    ports:
+      - "127.0.0.1:${PROOFARC_API_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:8080/actuator/health"]
+      interval: 15s
+      timeout: 10s
+      retries: 40
+      start_period: 120s
+    restart: unless-stopped
+
+  ui:
+    <<: *amd64
+    image: ghcr.io/proofarc/ui:${PROOFARC_VERSION:-v4.8.45}
+    depends_on:
+      security-agent:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${PROOFARC_UI_PORT:-3000}:8080"
+    restart: unless-stopped
+
+  # For Claude Code or any MCP client: http://localhost:8090/mcp (README: "Connect an AI agent").
+  mcp:
+    <<: *amd64
+    image: ghcr.io/proofarc/mcp:${PROOFARC_VERSION:-v4.8.45}
+    depends_on:
+      security-agent:
+        condition: service_healthy
+    environment:
+      PROOFARC_URL: http://security-agent:8080
+      PROOFARC_MCP_HOST: 0.0.0.0
+      PROOFARC_MCP_PORT: "8080"
+      PROOFARC_MCP_ALLOWED_HOSTS: mcp,localhost,127.0.0.1,localhost:${PROOFARC_MCP_PORT:-8090},127.0.0.1:${PROOFARC_MCP_PORT:-8090}
+      PROOFARC_MCP_ALLOWED_ORIGINS: http://localhost:${PROOFARC_UI_PORT:-3000}
+      PROOFARC_MCP_GOTCHA_INJECT: "true"
+    ports:
+      - "127.0.0.1:${PROOFARC_MCP_PORT:-8090}:8080"
+    restart: unless-stopped
+
+  # Web UI tests and crawls, with its own browser. The agents register once, when they start, so
+  # they wait for the platform to be healthy first.
+  playwright-agent:
+    <<: [*amd64, *your-app]
+    image: ghcr.io/proofarc/playwright:${PROOFARC_VERSION:-v4.8.45}
+    depends_on:
+      security-agent:
+        condition: service_healthy
+    shm_size: 1g
+    mem_limit: ${PROOFARC_BROWSER_MEMORY:-3g}
+    environment:
+      <<: *agent-login
+      ADMIN_USERNAME: agent-service
+      ADMIN_PASSWORD: ${PROOFARC_AGENT_PASSWORD}
+      AGENT_ID: playwright-agent-local-001
+      API_BASE_URL: http://security-agent:8080
+      POLL_INTERVAL: "5"
+      MAX_CONCURRENT_JOBS: ${PROOFARC_MAX_JOBS:-2}
+    restart: unless-stopped
+
+  # API tests (the platform only queues them; this agent sends the requests).
+  api-test-agent:
+    <<: [*amd64, *your-app]
+    image: ghcr.io/proofarc/api-test:${PROOFARC_VERSION:-v4.8.45}
+    depends_on:
+      security-agent:
+        condition: service_healthy
+    environment:
+      <<: *agent-login
+      AGENT_ID: api-test-agent-local-001
+      API_BASE_URL: http://security-agent:8080
+      POLL_INTERVAL: "3"
+      MAX_CONCURRENT_JOBS: "4"
+      HEALTH_FILE: /tmp/api-test-agent-health
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+    name: proofarc-local-postgres
