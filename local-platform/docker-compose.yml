@@ -48,7 +48,7 @@ services:
   # sets the two logins from .env. Safe to run every time; it skips what is already done.
   db-init:
     <<: *amd64
-    image: ghcr.io/proofarc/pa_db_init:${PROOFARC_VERSION:-v4.8.45}
+    image: ghcr.io/proofarc/pa_db_init:${PROOFARC_VERSION:-v4.8.46}
     entrypoint: ["sh", "-c", "db-init all && sh /set-logins.sh"]
     environment:
       PGHOST: postgres
@@ -67,7 +67,7 @@ services:
 
   security-agent:
     <<: [*amd64, *your-app]
-    image: ghcr.io/proofarc/backend:${PROOFARC_VERSION:-v4.8.45}
+    image: ghcr.io/proofarc/backend:${PROOFARC_VERSION:-v4.8.46}
     depends_on:
       db-init:
         condition: service_completed_successfully
@@ -100,7 +100,7 @@ services:
 
   ui:
     <<: *amd64
-    image: ghcr.io/proofarc/ui:${PROOFARC_VERSION:-v4.8.45}
+    image: ghcr.io/proofarc/ui:${PROOFARC_VERSION:-v4.8.46}
     depends_on:
       security-agent:
         condition: service_healthy
@@ -111,7 +111,7 @@ services:
   # For Claude Code or any MCP client: http://localhost:8090/mcp (README: "Connect an AI agent").
   mcp:
     <<: *amd64
-    image: ghcr.io/proofarc/mcp:${PROOFARC_VERSION:-v4.8.45}
+    image: ghcr.io/proofarc/mcp:${PROOFARC_VERSION:-v4.8.46}
     depends_on:
       security-agent:
         condition: service_healthy
@@ -130,7 +130,7 @@ services:
   # they wait for the platform to be healthy first.
   playwright-agent:
     <<: [*amd64, *your-app]
-    image: ghcr.io/proofarc/playwright:${PROOFARC_VERSION:-v4.8.45}
+    image: ghcr.io/proofarc/playwright:${PROOFARC_VERSION:-v4.8.46}
     depends_on:
       security-agent:
         condition: service_healthy
@@ -149,7 +149,7 @@ services:
   # API tests (the platform only queues them; this agent sends the requests).
   api-test-agent:
     <<: [*amd64, *your-app]
-    image: ghcr.io/proofarc/api-test:${PROOFARC_VERSION:-v4.8.45}
+    image: ghcr.io/proofarc/api-test:${PROOFARC_VERSION:-v4.8.46}
     depends_on:
       security-agent:
         condition: service_healthy

@@ -42,7 +42,7 @@ API_PORT="$(val PROOFARC_API_PORT)"; API_PORT="${API_PORT:-8080}"
 MCP_PORT="$(val PROOFARC_MCP_PORT)"; MCP_PORT="${MCP_PORT:-8090}"
 
 # 3. Registry sign-in. Only when our images for this version are not already on this machine.
-version="$(val PROOFARC_VERSION)"; version="${version:-v4.8.45}"
+version="$(val PROOFARC_VERSION)"; version="${version:-v4.8.46}"
 images=(backend ui mcp playwright api-test pa_db_init)
 missing=0
 for i in "${images[@]}"; do
